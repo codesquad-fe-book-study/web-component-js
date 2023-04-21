@@ -99,7 +99,7 @@ class ItemAppender extends Component {
     const { addItem } = this.props; // ItemAppender 생성 시 2번째 인자 props {addItem: addItem.bind(this)} addItem 메서드의 this는 App
     this.addEvent('keyup', '.appender', ({ key, target }) => {
       if (key !== 'Enter') return;
-      addItem(target.value); // Enter 시 App addItem 메서드를 실행한다. 인자로 ItemAppender keyup 이벤트 target의 value를 전달한다.
+      addItem(target.value); // Enter 시 App addItem 메서드를 실행한다. 인자로 ItemAppender keyup 이벤트 target(input)의 value를 전달한다. 즉, input value을 contents로 하는 item이 추가된다.
     });
   }
 }

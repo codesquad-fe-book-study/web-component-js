@@ -22,6 +22,7 @@ export default class Component {
   setEvent() {}
   setState(newState) {
     this.state = { ...this.state, ...newState };
+    this.render();
   }
   addEvent(eventType, selector, callback) {
     const children = [...this.$target.querySelectorAll(selector)];

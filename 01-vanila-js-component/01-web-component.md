@@ -122,7 +122,9 @@ setEvent () {
 3. Items에서 ItemAppender, ItemFilter 등을 분리
 
    - Items, ItemAppender, ItemFilter 등은 App.js에서 넘겨주는 로직을 사용하도록 만든다.
-   - 질문: 왜자식 컴포넌트에서 메서드를 정의하는게 아니라 부모에서 로직을 짜고 자식한테 이 메서드를 넘길까?
+   - 질문: 왜 자식 컴포넌트에서 메서드를 정의하는게 아니라 부모에서 로직을 짜고 자식한테 이 메서드를 넘길까?
+   - **상태를 부모 컴포넌트(root)에서만 접근하고 변경하고 관리한다.**
+   - Element의 이벤트 핸들러 등록은 각 하위 컴포넌트에서 하지만, 이벤트에 따른 변경되는 상태는 app에서 관리된다.
 
 ### props와 mounted의 역할
 
@@ -148,6 +150,7 @@ setEvent () {
 
 > 참고: https://github.com/JunilHwang/simple-component
 
+- [ ] core Component 구조 정확히 이해하기
 - [x] ItemAppender Component: addItem
 - [ ] Items Component: deleteItem, toggleItem
 - [ ] ItemFilter Component: filterItem
