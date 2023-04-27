@@ -50,7 +50,7 @@ store.notify();
 - 디자인 패턴의 하나이다.
 - `발행/구독 모델`이라고도 부른다.
 
-### 1. Publisher
+### 1. Publisher(발행)
 
 ```js
 class Publisher {
@@ -59,7 +59,10 @@ class Publisher {
   
   constructor(state) {
     this.#state = state;
-    // Object.defineProperty() 찾아보기
+    // Object.defineProperty()
+    // state 객체의 key값을 순회하면서 this에 해당 key값으로 `() => this.#state[key]` value를 갖게 한다.
+    // Q. 그런데 이걸 왜하는건지 모르겠다. 
+    // - 생성된 인스턴스에서 state가 갖는 값들에 바로 접근할 수 있어서..?
     Object.keys(state).forEach(key => Object.defineProperty(this, key, {
       get: () => this.#state[key]
         }
@@ -75,7 +78,7 @@ class Publisher {
   register(observer) {
     this.#observers.add(observer);
   }
-  
+  // Q. notify에 파라미터가 전달되지 않는 부분이 잘 이해가 안된다.
   notify() {
     this.#observers.forEach(observer => observer());
   }
@@ -89,4 +92,247 @@ class Publisher {
 
 > 여기서 핵심은 setState()를 통해 상태 변경 시, notify()가 실행되며 구독자들이 실행된다는 점이다. 즉, `내부 상태가 변할 때 구독자에게 알리는 것`
 
-### 2. Subscriber
+### 2. Subscriber(구독)
+
+```js
+class Subscriber {
+  #fn;
+  constructor(fn) {
+    this.#fn = fn;
+  }
+
+  subscribe(publisher) {
+    publisher.register(this.#fn);
+  }
+}
+```
+
+- Subscriber: 구독자
+- #fn: Publisher 입장에서 observer 된다.
+- subscribe(): publisher를 받아서 observer를 등록한다.
+
+> 발행기관을 구독한다.<br/>
+> `발행기관에서 변화가 생겼을 때 하는 일`을 정의해야 한다. 이게 사실 publisher에게는 observer가 된다.
+
+### 3. 적용하기
+
+```js
+const initailState = {a: 10, b: 20};
+
+// Q. 왜 publisher라고 안하고 상태라고 했을까..?
+const publisher = new Publisher(initailState);
+
+// Q-a. publisher는 외부 객체인데, 이걸 참조하고 있는 게 맞나..?
+const addCalculator = new Subscriber(() => console.log(`a + b = ${publisher.a + publisher.b}`));
+
+// Q-b. publisher를 구독하는 건 여기서 하면서..? 
+addCalculator.subscribe(publisher);
+```
+
+## 3. 리팩토링
+
+앞의 코드를 단순하게 `observable`과 `observe`의 관계에만 집중해서 다뤄보자.
+
+- observable은 observe에서 사용된다.
+- observable에 변화가 생기면, observe에 등록된 함수가 실행된다.
+
+### 1. [Object.defineProperty](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty) 이해하기
+
+MDN 문서의 설명은 아래와 같다.
+
+> 객체에 직접 새로운 속성을 정의하거나 이미 존재하는 속성을 수정한 후, 그 객체를 반환합니다.
+
+```js
+// 여기서 부터 아래까지의 코드를 class 하나라고 생각하면 이해하기 편하다.
+let a = 10;
+
+const state = {};
+
+Object.defineProperty(state, 'a', {
+  get() {
+    console.log(`현재 a의 값은 ${a} 입니다.`);
+    return a;
+  },
+  set(value) {
+    a = value;
+    console.log(`변경된 a의 값은 ${a} 입니다.`)
+  }
+})
+```
+
+- `Object.defineProperty(targetObject, property, descriptor)`
+  - `object`: 속성을 정의할 객체
+  - `property`: 새로 정의하거나 수정하려는 속성의 이름 또는 Symbol
+  - `descriptor`: 새로 정의하거나 수정하려는 속성을 기술하는 객체
+
+> `Object.defineProperty(targetObject, property, descriptor)`는 객체를 참조하거나 객체에 어떤 변화가 생길 때,
+> 중간에 우리가 원하는 행위를 집어넣을 수 있게 해준다.
+
+### 2. 여러 개의 속성 관리하기
+
+```js
+const state = {
+  a: 10,
+  b: 20,
+};
+
+const stateKeys = Object.keys(state);
+
+for (const key of stateKeys) {
+  let _value = state[key];
+  Object.defineProperty(state, key, {
+    get () {
+      console.log(`현재 state.${key}의 값은 ${_value} 입니다.`);
+      return _value;
+    },
+    set (value) {
+      _value = value;
+      console.log(`변경된 state.${key}의 값은 ${_value} 입니다.`);
+    }
+  })
+}
+
+console.log(`a + b = ${state.a + state.b}`);
+
+state.a = 100;
+state.b = 200;
+```
+
+위의 코드에서 `console.log`만 `observer`라는 함수로 변경해보자.
+
+```js
+const state = {
+  a: 10,
+  b: 20,
+};
+
+const stateKeys = Object.keys(state);
+const observer = () => console.log(`a + b = ${state.a + state.b}`);
+
+for (const key of stateKeys) {
+  let _value = state[key];
+  Object.defineProperty(state, key, {
+    get () {
+      return _value;
+    },
+    set (value) {
+      _value = value;
+      observer(); // set할 때 어떤 함수를 실행하게 하는 것이다.
+    }
+  })
+}
+
+observer();
+
+state.a = 100;
+state.b = 200;
+```
+
+> 지금까지의 과정을 조금 쉽게 설명하면 다음과 같은 흐름이다.
+> - obj.a로 어떤 값에 접근할 때(get), 중간에 뭔가 어떤 코드를 실행하고 싶은 것. 옵저버 패턴에서는 이 중간에 구독하는 메서드(subscribe)가 들어간다.
+> - obj.a에 어떤 값을 할당할 때(set), 중간에 뭔가 어떤 코드를 실행하고 싶은 것. 옵저버 패턴에서는 이 중간에 알림하는 메서드(notify)가 들어간다.
+> - 마치 중간에 과정을 가로채서 무언가를 실행하는 것. Proxy 패턴과 유사하다.
+
+### 3. 여러 개의 Observer 관리하기
+
+```js
+let currentObserver = null;
+
+const state = {
+  a: 10,
+  b: 20,
+};
+
+const stateKeys = Object.keys(state);
+
+for (const key of stateKeys) {
+  let _value = state[key];
+  // Q. 아래 observers는 for 문 밖에서 선언해도 되는데, 굳이 여기에 한 이유가 있을까?
+  // A. for문 안에서 각각의 key에 대한 closer로 갖고 있어야 각 key가 get 됐을 때, 본인에게 해당하는 함수에만 접근한다.
+  // 만약 밖에 빼두면 모든 key값들에 대한 observers가 공유되므로 그 안에 모든 함수가 실행되어버린다.
+  const observers = new Set();
+  Object.defineProperty(state, key, {
+    get () {
+      if (currentObserver) observers.add(currentObserver);
+      return _value;
+    },
+    set (value) {
+      _value = value;
+      observers.forEach(observer => observer());
+    }
+  })
+}
+
+const 덧셈_계산기 = () => {
+  currentObserver = 덧셈_계산기;
+  // 아래에서 state.a를 get하는 순간 defineProperty의 get 메서드가 실행된다.
+  console.log(`a + b = ${state.a + state.b}`);
+}
+
+const 뺄셈_계산기 = () => {
+  currentObserver = 뺄셈_계산기;
+  console.log(`a - b = ${state.a - state.b}`);
+}
+
+덧셈_계산기();
+// 아래에서 state.a에 어떤 값을 할당하는 순간 defineProperty의 set 메서드가 실행된다.
+state.a = 100;
+
+뺄셈_계산기();
+state.b = 200;
+
+state.a = 1;
+state.b = 2;
+```
+
+> 함수가 실행될 때 `currentObserver가 실행중인 함수를 참조하도록 만든다.`<br/>
+> `state`의 프로퍼티가 사용될 때(get을 호출할 때), 
+
+### 4. 함수화
+
+위의 코드를 재사용하기 위해 `onserve`와 `observable` 함수로 구현해보자.
+
+```js
+let currentObserver = null;
+
+const observe = fn => {
+  currentObserver = fn;
+  fn();
+  currentObserver = null;
+}
+
+const observable = obj => {
+  Object.keys(obj).forEach(key => {
+    let _value = obj[key];
+    const observers = new Set();
+
+    Object.defineProperty(obj, key, {
+      get () {
+        if (currentObserver) observers.add(currentObserver);
+        return _value;
+      },
+
+      set (value) {
+        _value = value;
+        observers.forEach(fn => fn());
+      }
+    })
+  })
+  return obj;
+}
+```
+
+아래와 같이 사용한다.
+
+```js
+// Q. 아래 코드 다시 한번 생각해보기
+const 상태 = observable({ a: 10, b: 20 });
+observe(() => console.log(`a = ${상태.a}`));
+observe(() => console.log(`b = ${상태.b}`));
+observe(() => console.log(`a + b = ${상태.a} + ${상태.b}`));
+observe(() => console.log(`a * b = ${상태.a} + ${상태.b}`));
+observe(() => console.log(`a - b = ${상태.a} + ${상태.b}`));
+
+상태.a = 100;
+상태.b = 200;
+```
