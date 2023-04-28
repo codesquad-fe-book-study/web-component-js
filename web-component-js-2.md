@@ -26,8 +26,8 @@ const store = new Store({
 
 // 컴포넌트 2개 생성
 // Q. 여기서 Component의 parameter로 객체가 전달되는 게 맞나..? 어차피 아래에서 따로 구독하는데?
-const component1 = new Component({ subscribe: [store]});
-const component2 = new Component({ subscribe: [store]});
+const component1 = new Component({ subscribe: [store] });
+const component2 = new Component({ subscribe: [store] });
 
 // 컴포넌트가 store를 구독
 component1.subscribe(store); // a + b = ${store.state.a + store.state.b}
@@ -63,6 +63,7 @@ class Publisher {
     // state 객체의 key값을 순회하면서 this에 해당 key값으로 `() => this.#state[key]` value를 갖게 한다.
     // Q. 그런데 이걸 왜하는건지 모르겠다. 
     // - 생성된 인스턴스에서 state가 갖는 값들에 바로 접근할 수 있어서..?
+    // A. 값 변경이 일어나지 않게 처리하는 것 같다.
     Object.keys(state).forEach(key => Object.defineProperty(this, key, {
       get: () => this.#state[key]
         }
@@ -297,6 +298,7 @@ let currentObserver = null;
 
 const observe = fn => {
   currentObserver = fn;
+  // 아래에서 fn이 실행될 때, currentObserver가 존재하게 되므로 observers에 fn이 등록된다.
   fn();
   currentObserver = null;
 }
@@ -308,12 +310,14 @@ const observable = obj => {
 
     Object.defineProperty(obj, key, {
       get () {
+        // get일 때는 observers에 currentObserver가 추가되기만 한다.
         if (currentObserver) observers.add(currentObserver);
         return _value;
       },
 
       set (value) {
         _value = value;
+        // set일 때는 observers에 있는 currentObserver들이 하나씩 호출된다.
         observers.forEach(fn => fn());
       }
     })
@@ -336,3 +340,446 @@ observe(() => console.log(`a - b = ${상태.a} + ${상태.b}`));
 상태.a = 100;
 상태.b = 200;
 ```
+
+## 4. DOM에 적용하기
+
+### 1. 일단 구현해보기
+
+구조는 뒤로 하고, 기능만 구현해보기.
+
+- `index.html`
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Store를 적용해보자</title>
+</head>
+<body>
+	<div id="app"></div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
+```
+
+- `src/main.js`
+
+```js
+import { observable, observe } from "./core/observer.js";
+
+const state = observable({
+  a: 10,
+  b: 20,
+});
+
+const $app = document.querySelector('#app');
+
+const render = () => {
+  $app.innerHTML = `
+    <p>a + b = ${state.a + state.b}</p>
+    <input id="stateA" value="${state.a}" />
+    <input id="stateB" value="${state.b}" />
+  `;
+
+  $app.querySelector('#stateA').addEventListener('change', ({ target }) => {
+    state.a = Number(target.value);
+  })
+
+  $app.querySelector('#stateB').addEventListener('change', ({ target }) => {
+    state.b = Number(target.value);
+  })
+}
+
+/* observe 함수가 호출되면 render도 호출되면서 그 안에 있는 state.a와 state.b가 getter로 호출될 때
+render 함수가 각각의 observers에 등록된다.
+그리고 #stateA와 #stateB에 어떤 값을 입력하고 변화를 감지하면 바로 state.a와 state.b의 setter가 호출되면서
+그 안에 observer중 하나로 존재하는 render 함수가 실행되면서 ui를 변경한다.
+ */
+observe(render);
+```
+
+### 2. Component로 추상화하기
+
+- `src/core/Component.js`
+
+```js
+import { observable, observe } from './observer.js';
+
+export class Component {
+  state; 
+  props; 
+  $el;
+
+  constructor ($el, props) {
+    // $el이 부모 엘리먼트이다. 해당 컴포넌트가 추가될 target
+    this.$el = $el;
+    this.props = props;
+    this.setup();
+  }
+
+  setup() {
+    // 컴포넌트마다 store가 있는 느낌이네. 여기서 state는 store라고 하는 게 좀더 자연스럽지 않나 싶다.
+    this.state = observable(this.initState()); // state를 관찰한다.
+    observe(() => { // state가 변경될 경우, 함수가 실행된다.
+      this.render();
+      this.setEvent();
+      this.mounted();
+    });
+  }
+
+  initState() { return {} }
+  template () { return ''; }
+  render () { this.$el.innerHTML = this.template(); }
+  setEvent () {}
+  mounted () {}
+}
+```
+
+위 코드를 기반으로 `src/App.js`에 `Component`를 적용해보자.
+
+```js
+import {Component} from "./core/Component.js";
+
+export class App extends Component {
+  // constructor와 super를 알아서 넣어준다.
+  initState () {
+    return {
+      a: 10,
+      b: 20,
+    }
+  }
+
+  template () {
+    // 이 때, this.state는 이미 observable이 적용된 객체이다.
+    const { a, b } = this.state;
+    return `
+      <input id="stateA" value="${a}" size="5" />
+      <input id="stateB" value="${b}" size="5" />
+      <p>a + b = ${a + b}</p>
+    `;
+  }
+
+  setEvent () {
+    const { $el, state } = this;
+
+    $el.querySelector('#stateA').addEventListener('change', ({ target }) => {
+      // state.a에 값일 할당될 때(setter), `render, setEvent, mounted`가 실행된다.
+      state.a = Number(target.value);
+    })
+
+    $el.querySelector('#stateB').addEventListener('change', ({ target }) => {
+      state.b = Number(target.value);
+    })
+  }
+}
+```
+
+### 3. 고민해보기
+
+이렇게 Component 내부에서 관리되는 state(store 느낌...!)에 observable을 씌워서 사용할 경우, `setState`를 사용하는 방식과 크게 다르지 않다고 느낄 수 있다.
+setState() 또한 state가 변경될 때마다 `render`를 실행하는 방식이기 때문이다.(직접 사용하느냐, setter를 했을 때 실행하느냐의 차이 느낌)
+
+> `observer`는 이렇게 컴포넌트 내부에서 사용하기보단 `중앙 집중식 저장소`를 관리할 때 매우 효과적이다!!!
+
+### 4. 컴포넌트 외부에 상태 만들어주기
+
+아주 간단한 Store를 만들어서 관리해보자.
+
+- `src/store.js`
+
+```js
+import { observable } from './core/observer.js'
+
+export const store = {
+  state: observable({
+    a: 10,
+    b: 20,
+  }),
+
+  setState (newState) {
+    for (const [key, value] of Object.entries(newState)) {
+      if (!this.state[key]) continue;
+      this.state[key] = value;
+    }
+  }
+}
+```
+
+- `src/App.js`
+
+```js
+import { Component } from "./core/Component.js";
+import { store } from './store.js';
+
+const InputA = () => `
+  <input id="stateA" value="${store.state.a}" size="5" />
+`;
+
+const InputB = () => `
+  <input id="stateB" value="${store.state.b}" size="5" />
+`
+
+const Calculator = () => `
+  <p>a + b = ${store.state.a + store.state.b}</p>
+`
+
+export class App extends Component {
+  template () {
+    return `
+      ${InputA()}
+      ${InputB()}
+      ${Calculator()}
+    `;
+  }
+
+  setEvent () {
+    const { $el } = this;
+
+    $el.querySelector('#stateA').addEventListener('change', ({ target }) => {
+      store.setState({ a: Number(target.value) });
+    })
+
+    $el.querySelector('#stateB').addEventListener('change', ({ target }) => {
+      store.setState({ b: Number(target.value) });
+    })
+  }
+}
+```
+
+- InputA, InputB, Calculator 3개의 컴포넌트가 store를 참조하고 있고, store가 변경되었을 때 컴포넌트가 자동으로 렌더링된다.
+- 여기에 `Flux 패턴`을 사용하면 `Redux`나 `Vuex`가 되는 것이다.
+
+## 5. Flux Pattern
+
+- Redux나 Vuex에서 사용되는 Flux 패턴
+- `단방향 데이터 흐름`
+  - `Dispatcher -> Store`
+  - `Store -> View`
+  - `View -> Action`
+  - `Action -> Dispatcher`
+- `단방향 데이터 흐름`은 `데이터의 변화`를 훨씬 예측하기 쉽게 만든다.
+
+> 또한, 우리가 눈으로 보는 UI에 따라 일대일 대응으로 state의 변화를 확인할 수 있다면 얼마나 좋겠는가?!
+
+## 6. Vuex 같은 Store 만들기
+
+Vuex가 어떤 interface를 가지고 있는지 간단하게 살펴보자.
+
+```js
+const store = new Vuex.Store({
+  state: {
+    count: 0
+  },
+  mutations: {
+    increment (state) {
+      state.count++
+    }
+  }
+});
+```
+
+- 참고: `Redux reducer과 Vuex mutations의 차이`에 대한 GPT의 답변
+
+> 질문: redux reducer and vuex mutations are simillar, right?<br/>
+> 답변: Yes, `Redux reducers and Vuex mutations are similar` in their purpose and functionality. 
+> `Both Redux and Vuex are state management libraries` used in JavaScript applications, and `reducers/mutations are used to modify the state in a predictable way.`
+> Redux is commonly used in React applications, while Vuex is used in Vue.js applications. `Both Redux reducers and Vuex mutations take the current state and an action/payload as input, and return a new state as output.` The new state is based on the current state and the action/payload passed to the reducer/mutation.
+> The main difference between the two is in how they are defined and used. In Redux, `reducers are pure functions that take the current state and an action, and return a new state. Reducers are combined together using the combineReducers function, and are called by the Redux store when an action is dispatched.`
+> `In Vuex, mutations are functions that directly modify the state.` They are defined as methods in the Vuex store, and are called using the commit method when an action is dispatched.
+> Overall, while there are some differences in their implementation, Redux reducers and Vuex mutations serve a similar purpose and are used to achieve similar goals in state management.
+
+- mutations: state를 변경시킨다.
+
+```js
+store.commit('increment'); // state의 count 값이 1 증가하게 된다.
+
+console.log(store.state.count); // 1
+```
+
+즉, `commit`으로 mutations의 메서드를 실행하는 구조이다.
+
+> Vuex는 개념만 알아보고 구현사항은 생략하겠습니다.
+
+## 7. Redux 만들기
+
+마찬가지로 `Redux`가 사용되는 형태를 살펴보자.
+
+```js
+import { createStore } from 'redux'
+
+/**
+ * 이것이 (state, action) => state 형태의 순수 함수인 리듀서입니다.
+ * 리듀서는 액션이 어떻게 상태를 다음 상태로 변경하는지 서술합니다.
+ *
+ * 상태의 모양은 당신 마음대로입니다: 기본형(primitive)일수도, 배열일수도, 객체일수도,
+ * 심지어 Immutable.js 자료구조일수도 있습니다. 오직 중요한 점은 상태 객체를 변경해서는 안되며,
+ * 상태가 바뀐다면 새로운 객체를 반환해야 한다는 것입니다. => 불변성
+ *
+ * 이 예제에서 우리는 `switch` 구문과 문자열을 썼지만,
+ * 여러분의 프로젝트에 맞게
+ * (함수 맵 같은) 다른 컨벤션을 따르셔도 좋습니다.
+ */
+function counterReducer(state = 0, action) {
+  switch (action.type) {
+    case 'INCREMENT':
+      return state + 1
+    case 'DECREMENT':
+      return state - 1
+    default:
+      return state
+  }
+}
+
+// 앱의 상태를 보관하는 Redux 저장소를 만듭니다.
+// API로는 { subscribe, dispatch, getState }가 있습니다.
+let store = createStore(counter)
+
+// subscribe()를 이용해 상태 변화에 따라 UI가 변경되게 할 수 있습니다.
+// 보통은 subscribe()를 직접 사용하기보다는 뷰 바인딩 라이브러리(예를 들어 React Redux)를 사용합니다.
+// 하지만 현재 상태를 localStorage에 영속적으로 저장할 때도 편리합니다.
+
+store.subscribe(() => console.log(store.getState()))
+
+// 내부 상태를 변경하는 유일한 방법은 액션을 보내는 것뿐입니다.
+// 액션은 직렬화할수도, 로깅할수도, 저장할수도 있으며 나중에 재실행할수도 있습니다.
+store.dispatch({ type: 'INCREMENT' })
+// 1
+store.dispatch({ type: 'INCREMENT' })
+// 2
+store.dispatch({ type: 'DECREMENT' })
+// 1
+```
+
+코드를 살펴보면 `createStore`가 `subscribe, dispatch, getState` 등의 메서드를 가진 객체를 반환하는 것을 알 수 있다.
+
+```js
+const createStore = (reducer) => {
+  return {subscribe, dispatch, getState};
+}
+```
+
+위의 내용을 기반으로 간단하게 구현을 해보자.
+
+```js
+import { observable } from './observer.js';
+
+export const createStore = (reducer) => {
+
+  // reducer가 실행될 때 반환하는 객체(state)를 observable로 만들어야 한다.
+  // Q. 여기서 state를 observable하는 게 의미가 있나..???
+  // observable을 적용한 initialState를 받는 걸로 이해하면 될까?
+  const state = observable(reducer());
+
+  // getState가 실제 state를 반환하는 것이 아니라 frozenState를 반환하도록 만들어야 한다.
+  // state와 동일한 내용이지만, getter만 되면서 state === frozenState가 false
+  const frozenState = {};
+  Object.keys(state).forEach(key => {
+    Object.defineProperty(frozenState, key, {
+      get: () => state[key], // get만 정의하여 set을 하지 못하도록 만드는 것이다.
+    })
+  });
+
+  // dispatch로만 state의 값을 변경할 수 있다.
+  const dispatch = (action) => {
+    const newState = reducer(state, action);
+
+    for (const [key, value] of Object.entries(newState)) {
+      // state의 key가 아닐 경우 변경을 생략한다.
+      if (!state[key]) continue;
+      state[key] = value;
+    }
+  }
+
+  const getState = () => frozenState;
+
+  // subscribe는 observe로 대체한다.
+  return { getState, dispatch };
+}
+```
+
+위의 `createStore`를 사용하여 store를 만들어보자.
+
+`src/store.js`
+
+```js
+import {createStore} from './core/Store.js';
+
+// 초기 state의 값을 정의해준다.
+const initState = {
+  a: 10,
+  b: 20,
+};
+
+// dispatch에서 사용될 type들을 정의해준다.
+export const SET_A = 'SET_A';
+export const SET_B = 'SET_B';
+
+// reducer를 정의하여 store에 넘겨준다.
+export const store = createStore((state = initState, action = {}) => {
+  switch (action.type) {
+    case 'SET_A' :
+      return { ...state, a: action.payload }
+    case 'SET_B' :
+      return { ...state, b: action.payload }
+    default:
+      return state;
+  }
+});
+
+/* 아래와 같이 reducer 함수를 정의해서 전달해도 좋을듯
+const reducer = (state, action) => {
+  switch (action.type) {
+    case 'SET_A' :
+      return { ...state, a: action.payload }
+    case 'SET_B' :
+      return { ...state, b: action.payload }
+    default:
+      return state;
+  }
+}
+ */
+
+// reducer에서 사용될 action을 정의해준다.
+export const setA = (payload) => ({ type: SET_A, payload });
+export const setB = (payload) => ({ type: SET_B, payload });
+```
+
+이제 App에서 Store를 사용해보자.
+
+`src/App.js`
+
+```js
+import { Component } from "./core/Component.js";
+import {setA, setB, store} from './store.js';
+
+const InputA = () => `<input id="stateA" value="${store.getState().a}" size="5" />`;
+const InputB = () => `<input id="stateB" value="${store.getState().b}" size="5" />`;
+const Calculator = () => `<p>a + b = ${store.getState().a + store.getState().b}</p>`;
+
+export class App extends Component {
+  template () {
+    return `
+      ${InputA()}
+      ${InputB()}
+      ${Calculator()}
+    `;
+  }
+
+  setEvent () {
+    const { $el } = this;
+
+    $el.querySelector('#stateA').addEventListener('change', ({ target }) => {
+      // dispatch를 통해서 값을 변경시킨다.(commit이라고 오타 있음)
+      store.dispatch(setA(Number(target.value)));
+    })
+
+    $el.querySelector('#stateB').addEventListener('change', ({ target }) => {
+      // dispatch를 통해서 값을 변경시킨다.(commit이라고 오타 있음)
+      store.dispatch(setB(Number(target.value)));
+    })
+  }
+}
+```
+
+이렇게 위와 같이 간단한 `redux`를 만들어볼 수 있다.
