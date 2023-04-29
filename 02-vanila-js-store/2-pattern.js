@@ -14,7 +14,7 @@ class Store {
     this.notify();
   }
 
-  subscribe(subscriber) {
+  register(subscriber) {
     this.observers.add(subscriber);
   }
 

@@ -8,6 +8,7 @@
 - 컴포넌트의 depth가 깊어지고, 컴포넌트 간의 관계가 복잡하기 때문에 상태관리도 복잡하다.
 - 따라서, 중앙 집중식 저장소를 사용하여 상태 관리를 한다. (상태 관리 라이브러리)
 - 상태가 계속해서 바뀌는 데이터의 양이 많고, 최상위 컴포넌트가 모든 상태를 가지고 있기 어려워 단 하나의 스토어로 상태를 관리한다.
+  - 질문: 기준? 1. props를 2번 이상 drilling 해서 넘겨줘야 하는 경우 (파악이 어렵기 때문에 차라리 전역으로 빼준다.) 2. 많은 컴포넌트에서 사용하는 상태라서 정말 전역으로 관리해야 하는 경우 (ex. 다크모드)
 
 ## 2. Observer Pattern
 
@@ -22,6 +23,7 @@
 
 - 질문: 인터페이스 설명이 너무 안나와있어서 리덕스 공식문서 먼저 보고왔는데도 안맞는다. 특히 component subscribe 생성할 때도 인자로 받고, subscribe라는 메서드는 또 따로 있다?
 - 질문: 설명에 따르면 store에 옵저버가 등록해야 하는거 아닌가? `store.subscribe(?)`
+  - 🔎 의미상 store는 subscriber를 추가하는 것이기 때문에, addSubscriber 혹은 register가 더 적합하다.
 - 일단 Store의 state가 변경되면 Store를 subscribe하는 component에 notify해서 컴포넌트가 변경된 상태에 맞게 업데이트되게 하기 위한 구조를 만들고 싶었다고 이해하고 넘어감
 
 ```js
@@ -32,8 +34,8 @@ const store = new Store({
 
 const component1 = new Component({ subscribe: [store] });
 const component2 = new Component({ subscribe: [store] });
-component1.subscribe(store); // a + b = ${store.state.a + store.state.b} ?
-component2.subscribe(store); // a * b = ${store.state.a * store.state.b} ?
+component1.subscribe(store); // a + b = ${store.state.a + store.state.b}
+component2.subscribe(store); // a * b = ${store.state.a * store.state.b}
 
 store.setState({
   a: 100,
@@ -85,7 +87,7 @@ class Store {
     this.notify();
   }
 
-  subscribe(subscriber) {
+  register(subscriber) {
     this.observers.add(subscriber);
   }
 
@@ -162,7 +164,7 @@ store.setState({ a: 100, b: 200 });
 // a * b = 20000
 ```
 
-### 구독 로직 반복을 줄이기 위한 리팩터링
+## 3. 구독 로직 반복을 줄이기 위한 리팩터링
 
 - state가 변경되거나 state를 참조할 경우 원하는 행위를 중간에 집어넣기 위해 `Object.defineProperty`를 사용한다.
 - 상태가 변경되면 이 상태를 관찰하고 있던 observer 함수를 실행한다.
@@ -223,15 +225,95 @@ set(value) {
 
 #### 5. 추상화
 
+0. 전역 변수
+
+```js
+let currentObserver = null;
+```
+
 1. `observe(callback)`
 
 - currentObserver 전역변수에 현재 callback을 저장하고 이를 실행하고 currentObserver를 다시 null로
 
+```js
+const observe = (callback) => {
+  currentObserver = callback;
+  callback();
+  currentObserver = null;
+};
+```
+
 2. `observable(stateObj)`
 
 - 인자로 받은 state object에 state를 참조하는 observer를 추가하거나 state 값이 변경됐을 때 observer callbacks 실행할 수 있는 객체로 바꿔주는 함수
+- get 메서드 실행 시(해당 key의 상태값에 접근할 때): currentObserver를 observers에 등록한다.
+- set 메서드 실행 시(해당 key의 상태값을 바꿀 때): 값을 변경하고 observers에 등록된 모든 observer를 실행한다.
 
-### 4. DOM에 적용하기
+```js
+const observable = (stateObj) => {
+  Object.keys(stateObj).forEach((key) => {
+    let _value = stateObj[key];
+    const observers = new Set();
+
+    Object.defineProperty(stateObj, key, {
+      get() {
+        if (currentObserver) observers.add(currentObserver);
+        return _value;
+      },
+
+      set(value) {
+        _value = value;
+        observers.forEach((callback) => callback());
+      },
+    });
+  });
+  return stateObj;
+};
+```
+
+3. 예시
+
+```js
+const store = observable({ a: 10, b: 20 });
+
+observe(() => console.log(`a = ${store.a}`));
+observe(() => console.log(`b = ${store.b}`));
+observe(() => console.log(`test = ${10 + 20}`));
+observe(() => console.log(`a + b = ${store.a} + ${store.b}`));
+observe(() => console.log(`a * b = ${store.a} + ${store.b}`));
+observe(() => console.log(`a - b = ${store.a} + ${store.b}`));
+
+console.log('*********** a 상태값 변경 **************');
+
+store.a = 100;
+
+console.log('*********** b 상태값 변경 **************');
+
+store.b = 200;
+```
+
+- 실행 결과: 변경된 상태값을 관찰하는 observe 함수만 실행된다.
+
+```
+a = 10
+b = 20
+test = 30
+a + b = 10 + 20
+a * b = 10 + 20
+a - b = 10 + 20
+*********** a 상태값 변경 **************
+a = 100
+a + b = 100 + 20
+a * b = 100 + 20
+a - b = 100 + 20
+*********** b 상태값 변경 **************
+b = 200
+a + b = 100 + 200
+a * b = 100 + 200
+a - b = 100 + 200
+```
+
+## 4. DOM에 적용하기
 
 - `observe(render)`: state 객체를 render 함수가 observe 하고 있다. state property에 get/set 시에 render 함수가 실행된다.
 - 결국 store에 view가 종속된다고 볼 수 있다.
@@ -419,6 +501,7 @@ function todoApp(state = {}, action) {
 - getState가 실제 state를 반환하는 것이 아니라 `frozenState`를 반환하도록 만든다.
 - `dispatch`로만 state의 값을 변경한다.
 - 질문: state의 key가 아닐 경우 왜 그냥 continue? 새롭게 정의라도 해줘야 하는거 아닌가?
+  - 🔎 state에서 관리하는 속성이 아닌 경우 넘긴다. (예를 들어, 현재 state는 counter인데 address 같은 다른 상태 key가 들어오는 경우)
 - dispatch에서 사용될 type들을 정의해준다.
 
 ### 적용해보기
@@ -432,5 +515,7 @@ function todoApp(state = {}, action) {
 ## 8. 심화학습
 
 ### 최적화
+
+1. 이전 상태와 변경 상태가 동일한 경우 재렌더링되지 않도록 한다.
 
 ### Proxy로 observable 구현하기
