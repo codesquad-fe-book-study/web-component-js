@@ -3,10 +3,10 @@
 ## 1. 중앙 집중식 상태관리
 
 - 현대 프론트엔드 개발에서 제일 중요한 것은 `상태관리`
-- `상태를 기반으로 DOM을 렌더링하기 때문이다.`
+- (I) `상태를 기반으로 DOM을 렌더링하기 때문이다.`
 - 어플리케이션의 규모가 커질수록 컴포넌트의 depth가 깊어지며 더불어 상태관리도 굉장히 어려워진다.
 
-> 이 때, 상태를 위에서 아래로 하나하나 전달하지 않고 `중앙 집중소 역할`을 하면서 동시에 `예측 가능한 방식`으로 다룰 수 있다면 어떨까?
+> (I) 이 때, 상태를 위에서 아래로 하나하나 전달하지 않고 `중앙 집중소 역할`을 하면서 동시에 `예측 가능한 방식`으로 다룰 수 있다면 어떨까?
 
 - [참고: Redux 공식문서](https://ko.redux.js.org/introduction/getting-started/)
 
@@ -25,7 +25,7 @@ const store = new Store({
 });
 
 // 컴포넌트 2개 생성
-// Q. 여기서 Component의 parameter로 객체가 전달되는 게 맞나..? 어차피 아래에서 따로 구독하는데?
+// (Q) 여기서 Component의 parameter로 객체가 전달되는 게 맞나..? 어차피 아래에서 따로 구독하는데?
 const component1 = new Component({ subscribe: [store] });
 const component2 = new Component({ subscribe: [store] });
 
@@ -61,9 +61,9 @@ class Publisher {
     this.#state = state;
     // Object.defineProperty()
     // state 객체의 key값을 순회하면서 this에 해당 key값으로 `() => this.#state[key]` value를 갖게 한다.
-    // Q. 그런데 이걸 왜하는건지 모르겠다. 
+    // (Q) 그런데 이걸 왜하는건지 모르겠다. 
     // - 생성된 인스턴스에서 state가 갖는 값들에 바로 접근할 수 있어서..?
-    // A. 값 변경이 일어나지 않게 처리하는 것 같다.
+    // (A) 값 변경이 일어나지 않게 처리하는 것 같다.
     Object.keys(state).forEach(key => Object.defineProperty(this, key, {
       get: () => this.#state[key]
         }
@@ -79,7 +79,7 @@ class Publisher {
   register(observer) {
     this.#observers.add(observer);
   }
-  // Q. notify에 파라미터가 전달되지 않는 부분이 잘 이해가 안된다.
+  // (Q) notify에 파라미터가 전달되지 않는 부분이 잘 이해가 안된다.
   notify() {
     this.#observers.forEach(observer => observer());
   }
@@ -109,7 +109,7 @@ class Subscriber {
 ```
 
 - Subscriber: 구독자
-- #fn: Publisher 입장에서 observer 된다.
+- #fn: Publisher 입장에서 observer가 된다.
 - subscribe(): publisher를 받아서 observer를 등록한다.
 
 > 발행기관을 구독한다.<br/>
@@ -120,13 +120,13 @@ class Subscriber {
 ```js
 const initailState = {a: 10, b: 20};
 
-// Q. 왜 publisher라고 안하고 상태라고 했을까..?
+// (Q) 왜 publisher라고 안하고 상태라고 했을까..?
 const publisher = new Publisher(initailState);
 
-// Q-a. publisher는 외부 객체인데, 이걸 참조하고 있는 게 맞나..?
+// (Q-a) publisher는 외부 객체인데, 이걸 참조하고 있는 게 맞나..?
 const addCalculator = new Subscriber(() => console.log(`a + b = ${publisher.a + publisher.b}`));
 
-// Q-b. publisher를 구독하는 건 여기서 하면서..? 
+// (Q-b) publisher를 구독하는 건 여기서 하면서..? 
 addCalculator.subscribe(publisher);
 ```
 
@@ -135,7 +135,7 @@ addCalculator.subscribe(publisher);
 앞의 코드를 단순하게 `observable`과 `observe`의 관계에만 집중해서 다뤄보자.
 
 - observable은 observe에서 사용된다.
-- observable에 변화가 생기면, observe에 등록된 함수가 실행된다.
+- observable에 변화가 생기면, observe에 의해 등록된 함수가 실행된다.
 
 ### 1. [Object.defineProperty](https://developer.mozilla.org/ko/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty) 이해하기
 
@@ -161,7 +161,7 @@ Object.defineProperty(state, 'a', {
 })
 ```
 
-- `Object.defineProperty(targetObject, property, descriptor)`
+- (I) `Object.defineProperty(targetObject, property, descriptor)`
   - `object`: 속성을 정의할 객체
   - `property`: 새로 정의하거나 수정하려는 속성의 이름 또는 Symbol
   - `descriptor`: 새로 정의하거나 수정하려는 속성을 기술하는 객체
@@ -218,7 +218,7 @@ for (const key of stateKeys) {
     },
     set (value) {
       _value = value;
-      observer(); // set할 때 어떤 함수를 실행하게 하는 것이다.
+      observer(); // (I) set할 때 어떤 함수를 실행하게 하는 것이다.
     }
   })
 }
@@ -229,7 +229,7 @@ state.a = 100;
 state.b = 200;
 ```
 
-> 지금까지의 과정을 조금 쉽게 설명하면 다음과 같은 흐름이다.
+> (I) 지금까지의 과정을 조금 쉽게 설명하면 다음과 같은 흐름이다.
 > - obj.a로 어떤 값에 접근할 때(get), 중간에 뭔가 어떤 코드를 실행하고 싶은 것. 옵저버 패턴에서는 이 중간에 구독하는 메서드(subscribe)가 들어간다.
 > - obj.a에 어떤 값을 할당할 때(set), 중간에 뭔가 어떤 코드를 실행하고 싶은 것. 옵저버 패턴에서는 이 중간에 알림하는 메서드(notify)가 들어간다.
 > - 마치 중간에 과정을 가로채서 무언가를 실행하는 것. Proxy 패턴과 유사하다.
@@ -248,8 +248,8 @@ const stateKeys = Object.keys(state);
 
 for (const key of stateKeys) {
   let _value = state[key];
-  // Q. 아래 observers는 for 문 밖에서 선언해도 되는데, 굳이 여기에 한 이유가 있을까?
-  // A. for문 안에서 각각의 key에 대한 closer로 갖고 있어야 각 key가 get 됐을 때, 본인에게 해당하는 함수에만 접근한다.
+  // (Q) 아래 observers는 for 문 밖에서 선언해도 되는데, 굳이 여기에 한 이유가 있을까?
+  // (A) for문 안에서 각각의 key에 대한 closer로 갖고 있어야 각 key가 get 됐을 때, 본인에게 해당하는 함수에만 접근한다.
   // 만약 밖에 빼두면 모든 key값들에 대한 observers가 공유되므로 그 안에 모든 함수가 실행되어버린다.
   const observers = new Set();
   Object.defineProperty(state, key, {
@@ -291,7 +291,7 @@ state.b = 2;
 
 ### 4. 함수화
 
-위의 코드를 재사용하기 위해 `onserve`와 `observable` 함수로 구현해보자.
+위의 코드를 재사용하기 위해 `observe`와 `observable` 함수로 구현해보자.
 
 ```js
 let currentObserver = null;
@@ -329,7 +329,7 @@ const observable = obj => {
 아래와 같이 사용한다.
 
 ```js
-// Q. 아래 코드 다시 한번 생각해보기
+// (Q) 아래 코드 다시 한번 생각해보기
 const 상태 = observable({ a: 10, b: 20 });
 observe(() => console.log(`a = ${상태.a}`));
 observe(() => console.log(`b = ${상태.b}`));
@@ -368,6 +368,7 @@ observe(() => console.log(`a - b = ${상태.a} + ${상태.b}`));
 ```js
 import { observable, observe } from "./core/observer.js";
 
+// (Q) 여기도 이걸 state라는 이름으로 하는 게 맞을까?
 const state = observable({
   a: 10,
   b: 20,
@@ -391,7 +392,7 @@ const render = () => {
   })
 }
 
-/* observe 함수가 호출되면 render도 호출되면서 그 안에 있는 state.a와 state.b가 getter로 호출될 때
+/* (I) observe 함수가 호출되면 render도 호출되면서 그 안에 있는 state.a와 state.b가 getter로 호출될 때
 render 함수가 각각의 observers에 등록된다.
 그리고 #stateA와 #stateB에 어떤 값을 입력하고 변화를 감지하면 바로 state.a와 state.b의 setter가 호출되면서
 그 안에 observer중 하나로 존재하는 render 함수가 실행되면서 ui를 변경한다.
@@ -419,7 +420,7 @@ export class Component {
   }
 
   setup() {
-    // 컴포넌트마다 store가 있는 느낌이네. 여기서 state는 store라고 하는 게 좀더 자연스럽지 않나 싶다.
+    // 컴포넌트마다 store가 있는 느낌. 여기서도 state는 store라고 하는 게 좀더 자연스럽지 않나 싶다.
     this.state = observable(this.initState()); // state를 관찰한다.
     observe(() => { // state가 변경될 경우, 함수가 실행된다.
       this.render();
@@ -478,7 +479,7 @@ export class App extends Component {
 ### 3. 고민해보기
 
 이렇게 Component 내부에서 관리되는 state(store 느낌...!)에 observable을 씌워서 사용할 경우, `setState`를 사용하는 방식과 크게 다르지 않다고 느낄 수 있다.
-setState() 또한 state가 변경될 때마다 `render`를 실행하는 방식이기 때문이다.(직접 사용하느냐, setter를 했을 때 실행하느냐의 차이 느낌)
+setState() 또한 state가 변경될 때마다 `render`를 실행하는 방식이기 때문이다.((I) 직접 사용하느냐, setter를 했을 때 실행하느냐의 차이 느낌)
 
 > `observer`는 이렇게 컴포넌트 내부에서 사용하기보단 `중앙 집중식 저장소`를 관리할 때 매우 효과적이다!!!
 
