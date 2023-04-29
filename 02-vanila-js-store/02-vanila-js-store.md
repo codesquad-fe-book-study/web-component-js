@@ -9,99 +9,6 @@
 - 따라서, 중앙 집중식 저장소를 사용하여 상태 관리를 한다. (상태 관리 라이브러리)
 - 상태가 계속해서 바뀌는 데이터의 양이 많고, 최상위 컴포넌트가 모든 상태를 가지고 있기 어려워 단 하나의 스토어로 상태를 관리한다.
 
-### 대표적인 상태관리 라이브러리: Redux 핵심 개념
-
-- 어플리케이션의 **상태 전부**를 **하나의 저장소(store)**에 **객체 트리 형태**로 저장한다.
-- 오직 **action**을 통해 상태를 변경한다.
-  - **리듀서Reducers**: action이 어떻게 state tree를 변경할지에 대해 작성한다.
-- 장점: 액션에 따른 모든 변경을 추적하여 액션을 하나씩 다시 실행할 수 있다, 어플리케이션이 복잡해지고 커지는 경우 확장성이 좋다.
-- 액션 객체에 따라 변경할 상태를 미리 명시해두고 이를 사용하여 상태를 변경하여 관리한다.
-
-#### 1. State
-
-- 상태: 원시형, 배열, 객체형, 직접 작성한 자료구조도 가능
-
-```js
-{
-  todos: [{
-    text: 'Eat food',
-    completed: true
-  }, {
-    text: 'Exercise',
-    completed: false
-  }],
-  visibilityFilter: 'SHOW_COMPLETED'
-}
-```
-
-#### 2. Action
-
-```js
-{ type: 'ADD_TODO', text: 'Go to swimming pool' }
-{ type: 'TOGGLE_TODO', index: 1 }
-{ type: 'SET_VISIBILITY_FILTER', filter: 'SHOW_ALL' }
-```
-
-#### 3. Reducer
-
-- 액션의 타입과 애션에 따라 상태를 어떻게 변경하는지 명시해둔 함수
-- params: state, action
-- return: 변경된 상태
-  - 상태 객체를 직접 변경하지 않고, 변경된 상태의 새로운 객체를 반환한다.
-- 전체 Reducer functions를 호출하기 위한 factory 함수를 둔다. (ex. `todoApp`)
-
-```js
-function visibilityFilter(state = 'SHOW_ALL', action) {
-  if (action.type === 'SET_VISIBILITY_FILTER') {
-    return action.filter;
-  } else {
-    return state;
-  }
-}
-
-function todos(state = [], action) {
-  switch (action.type) {
-    case 'ADD_TODO':
-      return state.concat([{ text: todo.text, completed: false }]); // 오타 수정
-    case 'TOGGLE_TODO':
-      return state.map((todo, index) =>
-        action.index === index
-          ? { text: todo.text, completed: !todo.completed }
-          : todo
-      );
-    default:
-      return state;
-  }
-}
-
-function todoApp(state = {}, action) {
-  return {
-    todos: todos(state.todos, action),
-    visibilityFilter: visibilityFilter(state.visibilityFilter, action),
-  };
-}
-```
-
-#### 2. Store
-
-- 주요 API: `subscribe`, `dispatch`, `getState`
-- `subscribe`: 상태 변화에 따라 UI를 변경한다.
-- `dispatch`: 액션의 타입에 따라 내부 상태를 변경한다.
-
-```js
-import { createStore } from 'redux';
-
-let store = createStore(counter);
-
-store.subscribe(() => console.log(store.getState()));
-store.dispatch({ type: 'INCREMENT' });
-// 1
-store.dispatch({ type: 'INCREMENT' });
-// 2
-store.dispatch({ type: 'DECREMENT' });
-// 1
-```
-
 ## 2. Observer Pattern
 
 - 객체의 상태 변화를 관찰하는 옵저버 목록을 객체에 등록한다.
@@ -389,3 +296,141 @@ export class App extends Component {
   }
 }
 ```
+
+## 6. Vuex Store Interface
+
+### property
+
+- `state`
+- `mutations`: action method들을 모아둔 객체
+
+### method
+
+- `commit(actionType, payload)`: store의 상태값을 변경할 때 사용하는 method
+- `dispatch(actionType, payload)`: (참고) actionType: 첫번째 인자로 context를 받는다.
+
+- 질문: payload(data)는 무슨 의미?
+
+  - GPT: the data that is passed to a Vuex mutation when it is called. (ex. user)
+  - mutations로 스토어 상태를 업데이트할 때 필요한 data를 2번째 인자로 받는데, 이를 `payload`라고 한다.
+
+### 적용하기
+
+- commit method로 사전에 mutations에 정의해놓은 Action을 실행하여 상태값을 변경한다.
+
+## 7. Redux
+
+- 어플리케이션의 **상태 전부**를 **하나의 저장소(store)**에 **객체 트리 형태**로 저장한다.
+- 오직 **action**을 통해 상태를 변경한다.
+  - **리듀서Reducers**: action이 어떻게 state tree를 변경할지에 대해 작성한다.
+- 장점: 액션에 따른 모든 변경을 추적하여 액션을 하나씩 다시 실행할 수 있다, 어플리케이션이 복잡해지고 커지는 경우 확장성이 좋다.
+- 액션 객체에 따라 변경할 상태를 미리 명시해두고 이를 사용하여 상태를 변경하여 관리한다.
+
+### Store 주요 API
+
+- 주요 API: `subscribe`, `dispatch`, `getState`
+- `subscribe`: 상태 변화에 따라 UI를 변경한다.
+- `dispatch`: 액션의 타입에 따라 내부 상태를 변경한다.
+
+```js
+import { createStore } from 'redux';
+
+let store = createStore(counter);
+
+store.subscribe(() => console.log(store.getState()));
+store.dispatch({ type: 'INCREMENT' });
+// 1
+store.dispatch({ type: 'INCREMENT' });
+// 2
+store.dispatch({ type: 'DECREMENT' });
+// 1
+```
+
+### [공식 문서 Core Concepts](https://ko.redux.js.org/introduction/core-concepts)
+
+#### 1. State
+
+- 상태: 원시형, 배열, 객체형, 직접 작성한 자료구조도 가능
+
+```js
+{
+  todos: [{
+    text: 'Eat food',
+    completed: true
+  }, {
+    text: 'Exercise',
+    completed: false
+  }],
+  visibilityFilter: 'SHOW_COMPLETED'
+}
+```
+
+#### 2. Action
+
+```js
+{ type: 'ADD_TODO', text: 'Go to swimming pool' }
+{ type: 'TOGGLE_TODO', index: 1 }
+{ type: 'SET_VISIBILITY_FILTER', filter: 'SHOW_ALL' }
+```
+
+#### 3. Reducer
+
+- 액션의 타입과 애션에 따라 상태를 어떻게 변경하는지 명시해둔 함수
+- params: state, action
+- return: 변경된 상태
+  - 상태 객체를 직접 변경하지 않고, 변경된 상태의 새로운 객체를 반환한다.
+- 전체 Reducer functions를 호출하기 위한 factory 함수를 둔다. (ex. `todoApp`)
+
+```js
+function visibilityFilter(state = 'SHOW_ALL', action) {
+  if (action.type === 'SET_VISIBILITY_FILTER') {
+    return action.filter;
+  } else {
+    return state;
+  }
+}
+
+function todos(state = [], action) {
+  switch (action.type) {
+    case 'ADD_TODO':
+      return state.concat([{ text: todo.text, completed: false }]); // 오타 수정
+    case 'TOGGLE_TODO':
+      return state.map((todo, index) =>
+        action.index === index
+          ? { text: todo.text, completed: !todo.completed }
+          : todo
+      );
+    default:
+      return state;
+  }
+}
+
+function todoApp(state = {}, action) {
+  return {
+    todos: todos(state.todos, action),
+    visibilityFilter: visibilityFilter(state.visibilityFilter, action),
+  };
+}
+```
+
+### 구현해보기
+
+- reducer가 실행될 때 반환하는 객체(state)를 observable로 만든다.
+- getState가 실제 state를 반환하는 것이 아니라 `frozenState`를 반환하도록 만든다.
+- `dispatch`로만 state의 값을 변경한다.
+- 질문: state의 key가 아닐 경우 왜 그냥 continue? 새롭게 정의라도 해줘야 하는거 아닌가?
+- dispatch에서 사용될 type들을 정의해준다.
+
+### 적용해보기
+
+- dispatch method로 사전에 정의해놓은 Action을 실행하여 상태값을 변경한다.
+
+### 질문
+
+- vuex, redux는 인터페이스만 살짝 다르고 똑같은데 굳이 왜 둘다 구현했을까? 차이점은?
+
+## 8. 심화학습
+
+### 최적화
+
+### Proxy로 observable 구현하기
