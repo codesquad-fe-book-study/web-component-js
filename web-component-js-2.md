@@ -783,3 +783,9 @@ export class App extends Component {
 ```
 
 이렇게 위와 같이 간단한 `redux`를 만들어볼 수 있다.
+
+# 참고
+
+- [개발자 황준일 - Vanilla Javascript로 상태관리 시스템 만들기](https://junilhwang.github.io/TIL/Javascript/Design/Vanilla-JS-Store/#_7-redux-%E1%84%86%E1%85%A1%E1%86%AB%E1%84%83%E1%85%B3%E1%86%AF%E1%84%80%E1%85%B5)
+- [Redux 공식문서 - 시작하기](https://ko.redux.js.org/introduction/getting-started/)
+- [MDN - Object.defineProperty()](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/defineProperty)
