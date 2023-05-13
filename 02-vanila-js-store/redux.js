@@ -76,12 +76,10 @@ export class App extends Component {
     const { $el } = this;
 
     $el.querySelector('#stateA').addEventListener('change', ({ target }) => {
-      // commit을 통해서 값을 변경시킨다.
       store.dispatch(setA(Number(target.value)));
     });
 
     $el.querySelector('#stateB').addEventListener('change', ({ target }) => {
-      // commit을 통해서 값을 변경시킨다.
       store.dispatch(setB(Number(target.value)));
     });
   }
