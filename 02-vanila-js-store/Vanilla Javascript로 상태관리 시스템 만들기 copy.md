@@ -1,8 +1,6 @@
-# Vanilla Javascript로 상태관리 시스템 만들기
-
 - 상태관리 프레임워크
 
-## 1. 중앙 집중식 상태관리의 필요성
+# 1. 중앙 집중식 상태관리의 필요성
 
 - 상태를 기반으로 DOM을 렌더링할 때, 가장 중요한 건 **상태관리**
 - 컴포넌트의 depth가 깊어지고, 컴포넌트 간의 관계가 복잡하기 때문에 상태관리도 복잡하다.
@@ -10,12 +8,12 @@
 - 상태가 계속해서 바뀌는 데이터의 양이 많고, 최상위 컴포넌트가 모든 상태를 가지고 있기 어려워 단 하나의 스토어로 상태를 관리한다.
   - 질문: 기준? 1. props를 2번 이상 drilling 해서 넘겨줘야 하는 경우 (파악이 어렵기 때문에 차라리 전역으로 빼준다.) 2. 많은 컴포넌트에서 사용하는 상태라서 정말 전역으로 관리해야 하는 경우 (ex. 다크모드)
 
-## 2. Observer Pattern
+# 2. Observer Pattern
 
 - 객체의 상태 변화를 관찰하는 옵저버 목록을 객체에 등록한다.
 - 객체의 상태 변화가 있을 때마다 객체가 직접 목록의 각 옵저버에게 통지한다. (`notify` method)
 
-### Store(저장소)와 Component(컴포넌트)의 관계
+## Store(저장소)와 Component(컴포넌트)의 관계
 
 1. 하나의 Store는 여러 개의 컴포넌트에서 사용된다.
 2. Store가 변경될 때 변경된 상태를 사용하는 Compoenent도 변경되어야 한다.
@@ -31,12 +29,10 @@ const store = new Store({
   a: 10,
   b: 20,
 });
-
 const component1 = new Component({ subscribe: [store] });
 const component2 = new Component({ subscribe: [store] });
 component1.subscribe(store); // a + b = ${store.state.a + store.state.b}
 component2.subscribe(store); // a * b = ${store.state.a * store.state.b}
-
 store.setState({
   a: 100,
   b: 200,
@@ -48,22 +44,17 @@ const state = {
   a: 10,
   b: 20,
 };
-
 class Store {
   constructor(state) {
     this.state = state
   }
-
   notify() {}
-
   setState(newState) {
     this.state = {...this.state, ...newState}
   }
 }
-
 class Component {
   constructor({subscribe: []}) {}
-
   subscribe(store)
 }
 ```
@@ -74,23 +65,19 @@ class Component {
 class Store {
   state;
   observers = new Set();
-
   constructor(state) {
     this.state = state;
     Object.keys(state).forEach((key) =>
       Object.defineProperty(this, key, { get: () => this.state[key] })
     );
   }
-
   setState(newState) {
     this.state = { ...this.state, ...newState };
     this.notify();
   }
-
   register(subscriber) {
     this.observers.add(subscriber);
   }
-
   notify() {
     this.observers.forEach((observer) => observer());
   }
@@ -108,11 +95,9 @@ class Store {
 ```js
 class Subscriber {
   callback;
-
   constructor(callback) {
     this.callback = callback;
   }
-
   subscribe(store) {
     store.subscribe(this.callback);
   }
@@ -139,7 +124,6 @@ const store = new Store({
 const addCalculator = new Subscriber(() =>
   console.log(`a + b = ${store.a + store.b}`)
 );
-
 const multiplyCalculator = new Subscriber(() =>
   console.log(`a * b = ${store.a * store.b}`)
 );
@@ -164,16 +148,16 @@ store.setState({ a: 100, b: 200 });
 // a * b = 20000
 ```
 
-## 3. 구독 로직 반복을 줄이기 위한 리팩터링
+# 3. 구독 로직 반복을 줄이기 위한 리팩터링
 
 - state가 변경되거나 state를 참조할 경우 원하는 행위를 중간에 집어넣기 위해 `Object.defineProperty`를 사용한다.
 - 상태가 변경되면 이 상태를 관찰하고 있던 observer 함수를 실행한다.
 
-#### 1. state 1개 (a)
+### 1. state 1개 (a)
 
-#### 2. state 2개 (a, b)
+### 2. state 2개 (a, b)
 
-#### 3. state가 변경되면 observer 함수를 실행한다.
+### 3. state가 변경되면 observer 함수를 실행한다.
 
 - 상태가 변경되면(set) 변경된 상태값으로 observer 함수가 실행된다.
 
@@ -184,7 +168,6 @@ const state = {
 };
 const stateKeys = Object.keys(state);
 const observer = () => console.log(`a + b = ${state.a + state.b}`);
-
 for (const key of stateKeys) {
   let _value = state[key];
   Object.defineProperty(state, key, {
@@ -205,7 +188,7 @@ state.a = 100; // a + b = 120
 state.b = 200; // a + b = 300
 ```
 
-#### 4. Observer 여러개
+### 4. Observer 여러개
 
 ```js
 let currentObserver = null; // currentObserver 변수에 현재 observer를 저장해둔다.
@@ -216,24 +199,24 @@ get() {
   if (currentObserver) observers.add(currentObserver); // currentObserver를 observers에 등록
   return _value;
 },
-
 set(value) {
   _value = value;
   observers.forEach((observer) => observer()); // observers에 등록된 모든 observer를 실행
 },
 ```
 
-#### 5. 추상화
+### 5. 추상화
 
-0. 전역 변수
+#### 0. 전역 변수 `currentObserver`
 
 ```js
 let currentObserver = null;
 ```
 
-1. `observe(callback)`
+#### 1. `observe(callback)`
 
 - currentObserver 전역변수에 현재 callback을 저장하고 이를 실행하고 currentObserver를 다시 null로
+	- null 로 재할당하는 이유: `get` 실행 시 `observe` 함수 실행 시 `currentObserver`
 
 ```js
 const observe = (callback) => {
@@ -243,7 +226,7 @@ const observe = (callback) => {
 };
 ```
 
-2. `observable(stateObj)`
+#### 2. `observable(stateObj)`
 
 - 인자로 받은 state object에 state를 참조하는 observer를 추가하거나 state 값이 변경됐을 때 observer callbacks 실행할 수 있는 객체로 바꿔주는 함수
 - get 메서드 실행 시(해당 key의 상태값에 접근할 때): currentObserver를 observers에 등록한다.
@@ -254,13 +237,11 @@ const observable = (stateObj) => {
   Object.keys(stateObj).forEach((key) => {
     let _value = stateObj[key];
     const observers = new Set();
-
     Object.defineProperty(stateObj, key, {
       get() {
         if (currentObserver) observers.add(currentObserver);
         return _value;
       },
-
       set(value) {
         _value = value;
         observers.forEach((callback) => callback());
@@ -275,20 +256,15 @@ const observable = (stateObj) => {
 
 ```js
 const store = observable({ a: 10, b: 20 });
-
 observe(() => console.log(`a = ${store.a}`));
 observe(() => console.log(`b = ${store.b}`));
 observe(() => console.log(`test = ${10 + 20}`));
 observe(() => console.log(`a + b = ${store.a} + ${store.b}`));
 observe(() => console.log(`a * b = ${store.a} + ${store.b}`));
 observe(() => console.log(`a - b = ${store.a} + ${store.b}`));
-
 console.log('*********** a 상태값 변경 **************');
-
 store.a = 100;
-
 console.log('*********** b 상태값 변경 **************');
-
 store.b = 200;
 ```
 
@@ -324,16 +300,14 @@ a - b = 100 + 200
 
 ```js
 import { observable } from './core/observer.js';
-
 export const store = {
   state: observable({
     a: 10,
     b: 20,
   }),
-
   setState(newState) {
     for (const [key, value] of Object.entries(newState)) {
-      if (!this.state[key]) continue; // ?
+      if (!this.state[key]) continue; 
       this.state[key] = value;
     }
   },
@@ -343,19 +317,15 @@ export const store = {
 ```js
 import { Component } from './core/Component.js';
 import { store } from './store.js';
-
 const InputA = () => `
   <input id="stateA" value="${store.state.a}" size="5" />
 `;
-
 const InputB = () => `
   <input id="stateB" value="${store.state.b}" size="5" />
 `;
-
 const Calculator = () => `
   <p>a + b = ${store.state.a + store.state.b}</p>
 `;
-
 export class App extends Component {
   template() {
     return `
@@ -364,14 +334,11 @@ export class App extends Component {
       ${Calculator()}
     `;
   }
-
   setEvent() {
     const { $el } = this;
-
     $el.querySelector('#stateA').addEventListener('change', ({ target }) => {
       store.setState({ a: Number(target.value) });
     });
-
     $el.querySelector('#stateB').addEventListener('change', ({ target }) => {
       store.setState({ b: Number(target.value) });
     });
@@ -379,7 +346,34 @@ export class App extends Component {
 }
 ```
 
-## 6. Vuex Store Interface
+- 질문: state의 key가 아닐 경우 왜 그냥 continue? 새롭게 정의라도 해줘야 하는거 아닌가?
+  - 🔎 state에서 관리하는 속성이 아닌 경우 넘긴다. (예를 들어, 현재 state는 counter인데 address 같은 다른 상태 key가 들어오는 경우)
+
+## 5. Flux 패턴
+
+- Flux : 흐름, 흐르는
+- 등장배경: 어떻게 해야 데이터의 변화를 예측하기 쉽고, 쉽게 tracking 할 수 있을까?
+-> 데이터가 **단방향으로** 흐르도록 설계하자!
+
+```
+Action > Dispatcher > Store > View (Action 발생)
+```
+
+
+## 6. Vuex 
+
+![[Pasted image 20230512231739.png]]
+
+1. Actions & Mutations & State로 Store가 이루어져 있고, 이들 간의 상호작용으로 Vue Componenets를 그린다. 
+2. Mutations는 State를 변경시키는 method들로 이루어져있다.
+3. Actions는 Backend API를 가져온 다음에 commit으로 Mutations에 선언된 method를 실행한다.
+4. State는 해당 상태를 사용하는 Vue Components를 Render 한다.
+
+## Store 구조
+
+- 생성 시 { state, mutations, actions } 를 주입받고, private field로 설정한다.
+	- state를 observable 객체로 만든다.
+- 외부에서 state를 변경하지 못하도록 설정한다. (store의 state는 defineProperty로 get만 설정)
 
 ### property
 
@@ -388,19 +382,37 @@ export class App extends Component {
 
 ### method
 
-- `commit(actionType, payload)`: store의 상태값을 변경할 때 사용하는 method
-- `dispatch(actionType, payload)`: (참고) actionType: 첫번째 인자로 context를 받는다.
+1. `commit` store의 상태값을 변경할 때 사용하는 method
+```js
+commit(action, payload) {
+    this.#mutations[action](this.#state, payload);
+  }
+```
 
-- 질문: payload(data)는 무슨 의미?
+- payload란? state 변경을 위해 필요한 정보
+	> In most cases, the payload should be an object so that it can contain multiple fields, and the recorded mutation will also be more descriptive: [공식문서](https://v3.vuex.vuejs.org/guide/mutations.html#commit-with-payload)
 
-  - GPT: the data that is passed to a Vuex mutation when it is called. (ex. user)
-  - mutations로 스토어 상태를 업데이트할 때 필요한 data를 2번째 인자로 받는데, 이를 `payload`라고 한다.
+2. 질문: [dispatch](https://v3.vuex.vuejs.org/guide/actions.html#dispatching-actions)
+```js
+dispatch (action, payload) {
+    return this.#actions[action]({
+      state: this.#state,
+      commit: this.commit.bind(this),
+      dispatch: this.dispatch.bind(this),
+    }, payload);
+  }
+```
+- `dispatch(actionType, payload)`
+- `action` 
+	- param 1: context {state, commit, dispatch}
+	- param 2: payload
 
 ### 적용하기
 
-- commit method로 사전에 mutations에 정의해놓은 Action을 실행하여 상태값을 변경한다.
 
 ## 7. Redux
+
+> 참고: https://jeonghwan-kim.github.io/2022/10/12/redux
 
 - 어플리케이션의 **상태 전부**를 **하나의 저장소(store)**에 **객체 트리 형태**로 저장한다.
 - 오직 **action**을 통해 상태를 변경한다.
@@ -413,12 +425,11 @@ export class App extends Component {
 - 주요 API: `subscribe`, `dispatch`, `getState`
 - `subscribe`: 상태 변화에 따라 UI를 변경한다.
 - `dispatch`: 액션의 타입에 따라 내부 상태를 변경한다.
+- 질문: 아래 공식문서 Redux 시작하기 예시 코드 중 `store.subscribe(() => console.log(store.getState())))` ?
 
 ```js
 import { createStore } from 'redux';
-
 let store = createStore(counter);
-
 store.subscribe(() => console.log(store.getState()));
 store.dispatch({ type: 'INCREMENT' });
 // 1
@@ -457,7 +468,7 @@ store.dispatch({ type: 'DECREMENT' });
 
 #### 3. Reducer
 
-- 액션의 타입과 애션에 따라 상태를 어떻게 변경하는지 명시해둔 함수
+- 액션의 타입과 액션에 따라 상태를 어떻게 변경하는지 명시해둔 함수
 - params: state, action
 - return: 변경된 상태
   - 상태 객체를 직접 변경하지 않고, 변경된 상태의 새로운 객체를 반환한다.
@@ -471,7 +482,6 @@ function visibilityFilter(state = 'SHOW_ALL', action) {
     return state;
   }
 }
-
 function todos(state = [], action) {
   switch (action.type) {
     case 'ADD_TODO':
@@ -486,7 +496,6 @@ function todos(state = [], action) {
       return state;
   }
 }
-
 function todoApp(state = {}, action) {
   return {
     todos: todos(state.todos, action),
@@ -500,22 +509,39 @@ function todoApp(state = {}, action) {
 - reducer가 실행될 때 반환하는 객체(state)를 observable로 만든다.
 - getState가 실제 state를 반환하는 것이 아니라 `frozenState`를 반환하도록 만든다.
 - `dispatch`로만 state의 값을 변경한다.
-- 질문: state의 key가 아닐 경우 왜 그냥 continue? 새롭게 정의라도 해줘야 하는거 아닌가?
-  - 🔎 state에서 관리하는 속성이 아닌 경우 넘긴다. (예를 들어, 현재 state는 counter인데 address 같은 다른 상태 key가 들어오는 경우)
 - dispatch에서 사용될 type들을 정의해준다.
-
-### 적용해보기
-
-- dispatch method로 사전에 정의해놓은 Action을 실행하여 상태값을 변경한다.
 
 ### 질문
 
-- vuex, redux는 인터페이스만 살짝 다르고 똑같은데 굳이 왜 둘다 구현했을까? 차이점은?
+- vuex, redux Store 차이점 비교
 
 ## 8. 심화학습
 
 ### 최적화
 
 1. 이전 상태와 변경 상태가 동일한 경우 재렌더링되지 않도록 한다.
+	1. 객체일 때 값 비교는 JSON.stringify 활용하기
+2. 상태가 연속으로 변경되는 경우에는 렌더링이 일정 주기로(한 프레임에 한번만) 일어나도록 한다.
+	1. debounce와 RequestAnimationFrame 개념을 적용하여 구현할 수 있다.
+	2. 질문: "즉시실행 부분은 제거해줘야 한다"
 
-### Proxy로 observable 구현하기
+#### RequestAnimationFrame
+
+```js
+requestAnimationFrame(callback)
+```
+
+- 주사율(Hz): 1초당 화면에 갱신되는 횟수
+	- 1초마다 화면에 표시할 수 있는 장면의 개수
+	- ex. 60Hz = 1초동안 화면에 60개의 장면을 보여줄 수 있다. 즉, 화면을 60단계로 보여줄 수 있다. 1초에 60번 화면 변화가 가능하다.
+- 위와 같은 디스플레이 특성을 고려하여, 렌더링 성능을 최적화하기 위해 사용하는 브라우저 API
+	- 새로운 화면을 보여주는 렌더링 작업이 1초에 최대 60번만 실행되도록 한다.
+
+
+### Proxy로 옵저버 패턴 구현하기
+
+- 한 객체에 대한 기본 작업을 가로채고 재정의한다.
+- `new Proxy(target, handler)`
+- - `target`: 프록시할 원본 객체
+-   `handler`: 가로채는 작업과 가로채는 작업을 재정의하는 방법을 정의하는 객체
+-  최신 브라우저는 다 지원하니 Proxy를 활용하자
