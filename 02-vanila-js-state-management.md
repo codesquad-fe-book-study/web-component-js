@@ -133,4 +133,61 @@ state.a = 1;
 state.b = 2;
 ```
 
+### Flux Pattern
+
+- 단방향 데이터 흐름: 예측 가능성!
+
+### Redux 만들기.
+
+>  * 리듀서는 액션이 어떻게 상태를 다음 상태로 변경하는지 서술합니다. 상태의 모양은 당신 마음대로입니다: 기본형(primitive)일수도, 배열일수도, 객체일수도, 심지어 Immutable.js 자료구조일수도 있습니다.  오직 중요한 점은 상태 객체를 변경해서는 안되며, 상태가 바뀐다면 새로운 객체를 반환해야 한다는 것입니다.
+
+Q. Immutable.js 자료구조가 뭔가요?
+
+- Immutabla 뜻: 변경불가성
+
+```js
+var statement = 'I am an immutable value'; // string은 immutable value
+
+var otherStr = statement.slice(8, 17);
+
+console.log(otherStr);   // 'immutable'
+console.log(statement);  // 'I am an immutable value'
+```
+
+- 불변 데이터 패턴(immutable data pattern)
+
+객체의 방어적 복사(defensive copy)  
+ex. Object.assign  
+불변객체화를 통한 객체 변경 방지  
+ex. Object.freeze
+
+- Immutable.js 자료구조?
+
+`Object.assign`, `Object.freeze`는 성능상 이슈 있어서 큰 객체에는 사용 추천하지 않는다. 그 대안 중 하나로 Facebook이 제공하는 Immutable.js가 있다.
+
+> 대상 객체의 속성 수가 많을 때 Object.assign은 새로운 객체를 생성하고 병합된 속성을 할당하는 데 필요한 작업량이 증가합니다. 이 작업은 일반적으로 메모리 할당과 가비지 수집을 필요로 하므로 성능 저하를 초래할 수 있습니다. 
+>   
+> 또한, Object.assign은 속성 할당 순서가 보장되지 않으므로, 병합된 객체의 결과가 예상과 다를 수 있습니다.  
+>  
+> 따라서 대상 객체의 속성 수가 매우 많을 때는 Object.assign을 사용하기 전에 다른 병합 방법을 고려하는 것이 좋습니다. 예를 들어, 대상 객체가 큰 경우 Object.assign 대신 Object.keys와 Array.prototype.forEach를 사용하여 속성을 반복하고 대상 객체의 속성을 하나씩 할당하는 것이 더 효율적일 수 있습니다.
+
+List, Stack, Map, OrderedMap, Set, OrderedSet, Record와 같은 영구 불변 (Permit Immutable) 데이터 구조를 제공한다.
+
+> Set, Map, WeekSet, WeekMap 같은 것들은 JSON.stringify로 변환되지 않는다. 이런 경우에는 추가적인 검사 로직이 필요하다.
+
+Q. WeekSet, WeekMap이 뭘까요?
+
+- WeakSet: 참조형 데이터에 대한 집합(set)을 만들어주는 객체
+- WeakMap: 키(key)와 값(value)의 쌍을 저장하는 맵 
+- WeakSet과 WeakMap은 Set과 Map과 비슷한 기능을 제공하지만, 내부적으로는 차이가 있다.
+  - WeakSet과 WeakMap은 각각 내부 요소에 대한 약한 참조(weak reference)를 가지고 있다. 그래서 참조하는 객체가 메모리에서 제거되면 해당 객체도 자동으로 제거된다.
+  - WeakSet과 WeakMap은 일반적인 Set과 Map보다 메모리 관리 측면에서 더 효율적. 
+  - WeakSet과 WeakMap은 내부 요소에 대한 약한 참조를 가지고 있기 때문에, 반드시 참조하는 객체가 다른 곳에서 유지되는 동안에만 유효.
+  - WeakSet과 WeakMap은 일반적으로 객체를 참조하는 경우에 사용되며, 메모리 누수를 방지하고 객체의 수명을 더 잘 관리하기 위해 사용된다.
+
+
+
+
+
+
 
