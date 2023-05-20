@@ -61,4 +61,5 @@ const { useState, render } = MyReact();
 class의 private과 비슷해보여서 물었더니 맞다고함
 
 <img width="482" alt="스크린샷 2023-05-20 오전 10 15 20 복사본" src="https://user-images.githubusercontent.com/114852081/239660786-4ca1db93-c4c2-4c27-9cb5-4a6edf4c85db.png">
+<img width="607" alt="스크린샷 2023-05-20 오전 11 35 09" src="https://github.com/codesquad-fe-book-study/web-component-js/assets/114852081/d3e046e6-89df-4c57-9880-43fb3af68336">
 
