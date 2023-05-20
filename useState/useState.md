@@ -25,7 +25,7 @@ function Counter() {
 
 그럼 state는 실제로 어떻게 관리되는지 궁금해서 GPT에게 물어봄
 
-![스크린샷 2023-05-19 오후 10.29.25.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/32d43ed2-1b4c-4178-8178-4ca50c2575de/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2023-05-19_%E1%84%8B%E1%85%A9%E1%84%92%E1%85%AE_10.29.25.png)
+![image](https://github.com/codesquad-fe-book-study/web-component-js/assets/114852081/3fc9fb6e-15f2-4016-92b3-f38ed0738560)
 
 그렇다고한다.
 
@@ -60,4 +60,5 @@ const { useState, render } = MyReact();
 ```
 
 class의 private과 비슷해보여서 물었더니 맞다고함
-![스크린샷 2023-05-19 오후 11.02.58.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/826e20c0-42c9-4dcd-8102-ef34a5f5c5d2/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA_2023-05-19_%E1%84%8B%E1%85%A9%E1%84%92%E1%85%AE_11.02.58.png)
+<img width="482" alt="스크린샷 2023-05-20 오전 10 15 20 복사본" src="https://user-images.githubusercontent.com/114852081/239660786-4ca1db93-c4c2-4c27-9cb5-4a6edf4c85db.png">
+
